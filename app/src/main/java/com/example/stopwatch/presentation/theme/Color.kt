@@ -1,4 +1,4 @@
-package com.example.stopwatch.ui.theme
+package com.example.stopwatch.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
