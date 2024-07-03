@@ -1,123 +1,104 @@
 package com.example.stopwatch.presentation.main
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import com.example.stopwatch.data.model.TabItem
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.stopwatch.data.DataStore
+import com.example.stopwatch.data.repo.DataStoreRepo
+import com.example.stopwatch.presentation.Screens
 import com.example.stopwatch.presentation.stopwatch.StopwatchScreen
 import com.example.stopwatch.presentation.timer.TimerScreen
+import com.example.stopwatch.util.getCurrentThemeColor
+import com.example.stopwatch.util.getIconColorByCurrentTheme
 
 @Composable
 fun MainScreen() {
-    val tabItemList = listOf(
-        TabItem.Stopwatch,
-        TabItem.Timer
-    )
-    var selectedTabIndex by remember {
-        mutableStateOf(0)
-    }
-    val horizontalPagerState = rememberPagerState {
-        tabItemList.size
-    }
+    val context = LocalContext.current
+    val dataStoreRepo = DataStoreRepo(DataStore(context))
+    val currentTheme by dataStoreRepo.getTheme().collectAsState(initial = "")
+    val themeColor = getCurrentThemeColor(currentTheme)
+    val iconColor = getIconColorByCurrentTheme(currentTheme)
+    val navController = rememberNavController()
 
-    LaunchedEffect(key1 = selectedTabIndex) {
-        horizontalPagerState.animateScrollToPage(selectedTabIndex)
-    }
-
-    LaunchedEffect(key1 = horizontalPagerState.currentPage, horizontalPagerState.isScrollInProgress) {
-        if (!horizontalPagerState.isScrollInProgress) {
-            selectedTabIndex = horizontalPagerState.currentPage
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            BottomNavigation(navController = navController, themeColor = themeColor, iconColor = iconColor)
         }
-    }
-
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = Screens.Stopwatch.route,
+            modifier = Modifier.padding(innerPadding)
         ) {
-            TopSection(
-                selectedTabIndex = selectedTabIndex,
-                tabItemList = tabItemList,
-                onTabChange = { selectedTabIndex = it }
-            )
-
-            BottomSection(
-                horizontalPagerState = horizontalPagerState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            )
-        }
-    }
-
-}
-
-@Composable
-fun TopSection(
-    modifier: Modifier = Modifier,
-    selectedTabIndex: Int,
-    tabItemList: List<TabItem>,
-    onTabChange: (Int) -> Unit
-) {
-    TabRow(selectedTabIndex = selectedTabIndex) {
-        tabItemList.forEachIndexed { index, item ->
-            Tab(
-                selected = index == selectedTabIndex,
-                onClick = { onTabChange(index) },
-                text = { Text(text = item.title) },
-                icon = {
-                    Icon(
-                        painter = painterResource(id = if (index == selectedTabIndex) item.selectedIcon else item.unSelectedIcon),
-                        contentDescription = item.title
-                    )
-                }
-            )
-        }
-    }
-}
-
-@Composable
-fun BottomSection(
-    horizontalPagerState: PagerState,
-    modifier: Modifier = Modifier
-) {
-    HorizontalPager(
-        state = horizontalPagerState,
-        modifier = modifier
-    ) { index ->
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            when (index) {
-                0 -> {
-                    StopwatchScreen()
-                }
-
-                1 -> {
-                    TimerScreen()
-                }
+            composable(Screens.Stopwatch.route) {
+                StopwatchScreen()
+            }
+            composable(Screens.Timer.route) {
+                TimerScreen()
             }
         }
+    }
+}
+
+@Composable
+fun BottomNavigation(navController: NavHostController, themeColor: Color, iconColor: Color) {
+
+    val screens = listOf(
+        Screens.Stopwatch,
+        Screens.Timer
+    )
+
+    val backStackEntry = navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry.value?.destination?.route
+
+    NavigationBar(
+        containerColor = themeColor
+    ) {
+        screens.forEach { screen ->
+            val selected = currentRoute == screen.route
+            NavigationBarItem(
+                selected = selected,
+                onClick = {
+                    if (!selected) {
+                        navController.navigate(screen.route) {
+                            launchSingleTop = true
+                            popUpTo(0)
+                        }
+                    }
+                },
+                icon = {
+                    Icon(
+                        painter = painterResource(id = if (selected) screen.filledIcon else screen.outlinedIcon),
+                        contentDescription = null,
+                        tint = if (selected) iconColor else iconColor.copy(alpha = 0.3f)
+                    )
+                },
+                label = {
+                    Text(text = screen.title, color = if (selected) iconColor else iconColor.copy(alpha = 0.3f))
+                },
+                colors = NavigationBarItemDefaults.colors(indicatorColor = themeColor)
+            )
+        }
+
     }
 }
